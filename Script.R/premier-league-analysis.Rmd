@@ -1,0 +1,1418 @@
+---
+title: "Premier League Analysis"
+author: "Peter Charambira"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    fig_height: 10
+    fig_width: 7
+    highlight: tango
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+---
+
+<center><img src="https://www.101greatgoals.com/wp-content/uploads/2017/03/new-premier-league-logo-2016-17-9.jpg"></center>
+
+```{r setup, include=FALSE}
+options(width=100)
+knitr::opts_chunk$set(out.width='1000px', dpi=200, message=FALSE, warning=FALSE)
+```
+
+# Introduction
+
+Football data organised and formatted and ready for download is hard to come by. Stats providers are hesitant to release their data to everyone, even if it's for academic purposes. 
+
+The data was scrapped from the Premier League website and is representative of seasons 2006/2007 to 2017/2018. 
+
+There will be a lot of graphs to look at the data and make comparisons of some teams.  The data sets were looked at separately even though they are highly correlated with each other.  **Comments and votes are more than welcome.**
+
+I should also say that i look at Manchester United a lot and it is not because i am a fan but because they are the biggest club in England.
+
+# Preparations {.tabset .tabset-fase .tabset-pills}
+
+## Load Libraries
+
+I am loading a few key libraries
+
+```{r, message = FALSE}
+install.packages("ggthemes")
+library("ggplot2")
+library("dplyr")
+library("RColorBrewer")
+library("ggthemes")
+library("ggrepel")
+library("gridExtra")
+library("reshape2")
+library("data.table")
+library("corrplot")
+library(tidyverse)
+
+```
+
+## Load Data
+
+Load the data and take a look at it and then do some data wrangling
+
+```{r echo = FALSE}
+
+
+head(stats)
+
+str(stats)
+
+stats[is.na(stats)] = 0
+
+summary(stats)
+
+
+
+head(results)
+
+str(results)
+
+summary(results)
+
+```
+
+Now we have somewhat of a good understanding of the data let us move on to looking at it.
+
+# Results Analysis
+
+## Season Breakdown
+
+### Results
+
+First look at the results as they are the most important thing in the game.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Results by Season"}
+
+results %>%
+  group_by(result, season) %>%
+  count() %>%
+  ggplot(aes(reorder(result, n), y = n, fill = n))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  xlab("Results") +
+  ylab("Results Count") +
+  facet_wrap( ~ season) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) + 
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(size = 45), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  geom_text(aes(label = n), vjust = -0.3, size = 10.5) +
+  ggtitle('Results Count through the seasons')
+
+```
+
+There is a theory that says there is an advantage to playing games at home.  In the premier league everyone plays the same number of games at home so that they can take that advantage out of the question.  **Through the seasons we can see that the home team has more wins than the away teams.**  There are also more draws than away team wins for the most part through the seasons.
+
+### Goals
+
+With home teams winning more games there should be more home team goals, right?
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Goals by Season"}
+
+tot_home_goals = results %>%
+  group_by(season) %>%
+  summarise(total_home_goals = sum(home_goals)) %>%
+  ggplot(aes(x = season, y = total_home_goals, fill = total_home_goals))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Home Goals") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_home_goals), vjust = -0.3, size = 10.5) +
+  ggtitle("Total Home Goals by Season")
+
+tot_away_goals = results %>%
+  group_by(season) %>%
+  summarise(total_away_goals = sum(away_goals)) %>%
+  ggplot(aes(x = season, y = total_away_goals, fill = total_away_goals))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Away Goals") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_away_goals), vjust = -0.3, size = 10.5) +
+  ggtitle("Total Away Goals by Season")
+
+grid.arrange(tot_home_goals, tot_away_goals, ncol = 1, nrow = 2)
+
+```
+
+The year when **home teams scored the most goals was in 2009/2010 with 645 goals.**  The season when home teams had a hard time scoring goals was in the 2008/2009 season.  The **number of goals scored by the home teams** seems to change from season to season and **is always more than the away team goals.** 
+
+Away teams have a hard time scoring goals and this should be clear from what we have already looked at with regards to the results.  The season when the **away teams were able to score goals more freely than others was the 2012/2013 season with 471 goals.**  2006/2007 was a tough season for the away teams as they only managed to only score 379 goals all season.
+
+### Types of Draws
+
+"Smaller clubs" usually try to hold on for a draw for the majority of a game and then go for it in the last 10 or so minutes of a game, as a rule of thumb.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Types of Draws by Season"}
+
+scoring = results %>%
+  filter(home_goals > 0 & away_goals > 0) %>%
+  group_by(season) %>%
+  summarise(count=n()) %>%
+  ggplot(aes(x=season, y = count, fill = count)) + 
+   geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Count") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = count), vjust = -0.3, size = 10.5) +
+  ggtitle("Count of Scoring Draws by Season")
+
+goalless = results %>%
+  filter(home_goals == 0 & away_goals == 0) %>%
+  group_by(season) %>%
+  summarise(count=n()) %>%
+  ggplot(aes(x=season, y = count, fill = count)) + 
+   geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Count") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = count), vjust = -0.3, size = 10.5) +
+  ggtitle("Count of Goalless Draws by Season")
+
+grid.arrange(scoring, goalless, ncol = 1, nrow = 2)
+
+```
+
+There have been **more scoring draws than goalles draws in the premier league from the 2006/07 to the 2017/18 seasons.**  This is good news as the fans will leave the stadium after watching some goals, goalless draws can be very entertaining too but goals always spice the game up.
+
+## Team Breakdown
+
+### Team Wins
+
+Making your home stadium a fortress is key on any campaign for the title.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=40, fig.height=30, fig.cap="Team Wins"}
+
+home_win = results %>%
+  filter(result == "H") %>%
+  group_by(home_team, result) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  ggplot(aes(x=reorder(factor(home_team), count), y=count, fill = count)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  xlab("Team") + 
+  ylab("Wins") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = count), hjust = -0.3, size = 7.5) +
+  ggtitle("Teams with the most home wins \nin the English Premier League from \n2006/07 to 2017/18") + 
+  coord_flip()
+
+away_win = results %>%
+  filter(result == "A") %>%
+  group_by(away_team, result) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  ggplot(aes(x=reorder(factor(away_team), count), y=count, fill = count)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  xlab("Team") + 
+  ylab("Wins") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = count), hjust = -0.3, size = 7.5) +
+  ggtitle("Teams with the most away wins \nin the English Premier League from \n2006/07 to 2017/18") + 
+  coord_flip()
+
+grid.arrange(home_win, away_win, ncol = 2, nrow = 1)
+
+home_wins = results %>%
+  filter(result == "H") %>%
+  group_by(home_team, result) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count))
+
+away_wins = results %>%
+  filter(result == "A") %>%
+  group_by(away_team, result) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count))
+
+home_wins = rename(home_wins, "Team" = "home_team")
+away_wins = rename(away_wins, "Team" = "away_team")
+away_wins[nrow(away_wins) + 1,] = list("Derby County", "A", 0)
+
+overall_wins = merge(home_wins, away_wins, by="Team")
+overall_wins$wins = overall_wins$count.x + overall_wins$count.y
+
+ggplot(overall_wins, aes(x=reorder(factor(Team), wins), y=wins, fill = wins)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  xlab("Team") + 
+  ylab("Wins") + 
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = wins), hjust = -0.3, size = 10.5) +
+  ggtitle("Number of Overall wins in the English Premier League from 2006/07 to 2017/18") +
+  coord_flip()
+
+```
+
+**The Manchester clubs know how to defend their turf with the Red Devils being the best home team out of all the teams that played in the premier league during the time in question.**  Derby County only had one win at home and none away.  **The Theatre of Dreams is regarded as one of the best stadiums in the world and the Red Devils know how to take advantage of that and get wins.  The North London rivals also know how to defend their home turf with the red side being better.**
+
+**Going on the road and winning games is always tough but Chelsea have found a way to make themselves the best at it.**  On their heels are the Red Devils and this should not be a shocker as these two teams have dominated the game in recent years.  The title is usually won by the team that makes their home stadium a fortress and then goes on the road and manages to nick a few results.  **Arsenal did not win any away games in the second half of the 2017/18 season but they still came in third place with their 103 road wins.**
+
+**Manchester United has been regarded as the best English team for a long time and the number of wins they have ammased in recent times show that they are still the best team in England.**  Chelsea are now on their heels and this might be due to the investment from their owner and the same can be said about Manchester City.  The Citizens have seen a change in fortunes with the arrival on the scene of their new Middle Eastern owners.  The Citizens have made investments into the team and this has shown up on the field with the number of wins they have amassed.
+
+## Manchester United
+
+I am not a United fan (as mentioned earlier) but am friends with a few guys who love them more than anything.  I respect my friends and because of that i decided to zero in on them a bit. Also Manchester United is the biggest club in England and wanted to see how they have been performing in recent years.  They have been through a lot recently, change of coaches and executives.
+
+### Manchester United Scoring
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Manchester United Scoring by Season"}
+
+h = results %>% 
+  filter(home_team == "Manchester United") %>%
+  select(home_team, home_goals, season) %>%
+  rename(team = home_team) %>%
+  group_by(season) %>%
+  summarise(total_home_goals = sum(home_goals))
+  
+
+a = results %>% 
+  filter(away_team == "Manchester United") %>%
+  select(away_team, away_goals, season)%>%
+  rename(team = away_team) %>%
+  group_by(season) %>%
+  summarise(total_away_goals = sum(away_goals))
+
+man_utd = merge(h, a, by="season")
+
+home = man_utd %>% 
+  ggplot(aes(x=season, y = total_home_goals, fill = total_home_goals)) + 
+   geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Home Goals") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_home_goals), vjust = -0.3, size = 10.5) +
+  ggtitle("Manchester United Total Home Goals by Season")
+
+away = man_utd %>% 
+  ggplot(aes(x=season, y = total_away_goals, fill = total_away_goals)) + 
+   geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Away Goals") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_away_goals), vjust = -0.3, size = 10.5) +
+  ggtitle("Manchester United Total Away Goals by Season")
+
+grid.arrange(home, away, ncol = 1, nrow = 2)
+
+```
+
+We have already seen how Manchester United have performed with regards to the results, home and away.  There have been some changes in the number of goals scored through the seasons home and away.  In the **last 4 seasons the number of away goals have been increasing and the number of home goals over that same period has fluctuated.**  In the **2016/17 season they scored more away goals than home goals.**  The home fans are always very demanding of their teams and this sometimes has a negative impact on the teams and they become more nervous and score less goals.
+
+### Manchester United Win Draw Loss
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Manchester United Win Draw Loss by Season"}
+
+home_wdl = results %>% 
+  filter(home_team == "Manchester United") %>%
+  rename(team = home_team, opponent = away_team) %>%
+  mutate(results = (if_else (result == "H", "United Win", if_else(result == "D", "Draw", "United Loss"))))
+
+away_wdl = results %>% 
+  filter(away_team == "Manchester United") %>%
+  rename(team = away_team, opponent = home_team) %>%
+  mutate(results = (if_else (result == "A", "United Win", if_else(result == "D", "Draw", "United Loss"))))
+
+manu_wdl = rbind(home_wdl, away_wdl)
+
+manu_wdl %>%
+  group_by(results, opponent) %>%
+  count() %>%
+  group_by(opponent) %>%
+  mutate(percentage = signif(((n / sum(n)) * 100), 2)) %>%
+  ggplot() + 
+  geom_bar(aes(y = percentage, x = opponent, fill = results), stat="identity") + 
+  theme(legend.position ='bottom',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  geom_text(aes(y = percentage, x = opponent, label = paste0(percentage, "%"), fill = results), position = position_stack(vjust = 0.5), size = 7.5) +
+  ggtitle('Win Draw Loss Percentages for Manchester United')
+
+```
+
+**Manchester United have never lost a game to Derby County, Blackpool, Charlton Athletic, Queens Park Rangers, and Sheffield United from the 2006/07 season to the 2017/18 season.**  They have won each and every game they have played in this time period.  During the same period they have a **losing record against one team, Chelsea.**  They have a favorable record against the rest of the teams in this time period.
+
+## Rivalries
+
+Will look at a few rivalries and see how the teams have performed against each other through the seasons.  
+
+### North London Rivalry
+
+In the last two seasons this has been less of a rivalry than anything else.  Arsene Wenger and his teams have had the advantage over their North London rivals for a long time but Wenger left and on his way out Spurs were looking better.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="North London Rivalry by Season"}
+
+gunner_home_wdl = results %>% 
+  filter(home_team == "Arsenal") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+gunner_away_wdl = results %>% 
+  filter(away_team == "Arsenal") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+gunner_wdl = rbind(gunner_away_wdl, gunner_home_wdl)
+
+gunner_wdl_count = gunner_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+spurs_home_wdl = results %>% 
+  filter(home_team == "Tottenham Hotspur") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+spurs_away_wdl = results %>% 
+  filter(away_team == "Tottenham Hotspur") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+spurs_wdl = rbind(spurs_away_wdl, spurs_home_wdl)
+
+spurs_wdl_count = spurs_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) 
+  
+north_london_wdl = rbind(spurs_wdl_count, gunner_wdl_count)
+
+north_london_wdl %>%
+  mutate(counts = ifelse(team=='Arsenal',count,-count)) %>%
+  ggplot(aes(y = counts, x = season, fill = results)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_brewer(name="",palette='Set1') + 
+  scale_y_continuous(breaks=c(-38,seq(-30,30,5),38),labels=abs) + 
+  theme_fivethirtyeight() +
+  geom_hline(yintercept=0,alpha=.5) + 
+  geom_hline(yintercept=-30,alpha=.5) + 
+  geom_hline(yintercept=-15,alpha=.5) +
+  geom_hline(yintercept=15,alpha=.5) + 
+  geom_hline(yintercept=30,alpha=.5)  +
+  labs(title='Tottenham Hotspur                                                                                               Arsenal', subtitle='by number of Wins, Draws and Losses') +
+  coord_flip() + 
+  theme(legend.position ='bottom',legend.text=element_text(size=25), axis.text.y = element_text(size = 25),axis.text.x = element_text(size = 25), plot.title = element_text(size=50), plot.subtitle = element_text(size = 25)) 
+
+```
+
+This was inspired by [Jonathan Bouchet](https://www.kaggle.com/jonathanbouchet) and his look at a different premier [league rivary](https://www.kaggle.com/jonathanbouchet/manchester-united-vs-liverpool).
+
+Looking at the graph it is clear that **Spurs has been winning more games than Arsenal in recent seasons, maybe north London is not red anymore.**  Unai Emery has a tall task on hand but finishing above Spurs might save him with the fans.
+
+### Merseyside Rivalry
+
+This is a game you as ways circle on the calender as there are usually fireworks in it.  Liverpool has been the dominant team through the years but there has been a bit of investment in the Toffees and they might be able to challenge the Reds more.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Merseyside Rivalry by Season"}
+
+toffee_home_wdl = results %>% 
+  filter(home_team == "Everton") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+toffee_away_wdl = results %>% 
+  filter(away_team == "Everton") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+toffee_wdl = rbind(toffee_away_wdl, toffee_home_wdl)
+
+toffee_wdl_count = toffee_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+reds_home_wdl = results %>% 
+  filter(home_team == "Liverpool") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+reds_away_wdl = results %>% 
+  filter(away_team == "Liverpool") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+reds_wdl = rbind(reds_away_wdl, reds_home_wdl)
+
+reds_wdl_count = reds_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) 
+  
+merseyside_wdl = rbind(toffee_wdl_count, reds_wdl_count)
+
+merseyside_wdl %>%
+  mutate(counts = ifelse(team=='Liverpool',count,-count)) %>%
+  ggplot(aes(y = counts, x = season, fill = results)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_brewer(name="",palette='Set1') + 
+  scale_y_continuous(breaks=c(-38,seq(-30,30,5),38),labels=abs) + 
+  theme_fivethirtyeight() +
+  geom_hline(yintercept=0,alpha=.5) + 
+  geom_hline(yintercept=-30,alpha=.5) + 
+  geom_hline(yintercept=-15,alpha=.5) +
+  geom_hline(yintercept=15,alpha=.5) + 
+  geom_hline(yintercept=30,alpha=.5)  +
+  labs(title='Everton                                                                                                               Liverpool', subtitle='by number of Wins, Draws and Losses') +
+  coord_flip() + 
+  theme(legend.position ='bottom',legend.text=element_text(size=25), axis.text.y = element_text(size = 25),axis.text.x = element_text(size = 25), plot.title = element_text(size=50), plot.subtitle = element_text(size = 25))
+
+```
+
+**This rivalry has been more one sided than i expected, though Liverpool have won more titles than Everton.**  In recent seasons there has been a clear gulf in class between the two.  Looking at this, it is clear that **the city of Liverpool is red.**
+
+### Manchester Rivalry
+
+Once referred to as the noisy neighbors, City have managed to surpass their neighbors in recent years.  There has been a lot of investment in both teams but it is looking as if City has made the better investments.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Manchester Rivalry by Season"}
+
+city_home_wdl = results %>% 
+  filter(home_team == "Manchester City") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+city_away_wdl = results %>% 
+  filter(away_team == "Manchester City") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+city_wdl = rbind(city_away_wdl, city_home_wdl)
+
+city_wdl_count = city_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+united_home_wdl = results %>% 
+  filter(home_team == "Manchester United") %>%
+  rename(team = home_team) %>%
+  mutate(results = (if_else (result == "H", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+united_away_wdl = results %>% 
+  filter(away_team == "Manchester United") %>%
+  rename(team = away_team) %>%
+  mutate(results = (if_else (result == "A", "Win", if_else(result == "D", "Draw", "Loss")))) %>%
+  select(team, season, results)
+
+united_wdl = rbind(united_away_wdl, united_home_wdl)
+
+united_wdl_count = united_wdl %>%
+  group_by(team, season, results) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) 
+  
+manchester_wdl = rbind(city_wdl_count, united_wdl_count)
+
+manchester_wdl %>%
+  mutate(counts = ifelse(team=='Manchester United',count,-count)) %>%
+  ggplot(aes(y = counts, x = season, fill = results)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_brewer(name="",palette='Set1') + 
+  scale_y_continuous(breaks=c(-38,seq(-30,30,5),38),labels=abs) + 
+  theme_fivethirtyeight() +
+  geom_hline(yintercept=0,alpha=.5) + 
+  geom_hline(yintercept=-30,alpha=.5) + 
+  geom_hline(yintercept=-15,alpha=.5) +
+  geom_hline(yintercept=15,alpha=.5) + 
+  geom_hline(yintercept=30,alpha=.5)  +
+  labs(title='Manchester City                                                                                Manchester United', subtitle='by number of Wins, Draws and Losses') +
+  coord_flip() + 
+  theme(legend.position ='bottom',legend.text=element_text(size=25), axis.text.y = element_text(size = 25),axis.text.x = element_text(size = 25), plot.title = element_text(size=50), plot.subtitle = element_text(size = 25))
+
+```
+
+**Red Devils fans will not like the look of this graph in recent seasons.  City has been performing better than their bitter rivals.  The noisy neighbors have been making more noise in recent seasons.**  
+
+# Stats Analysis
+
+## Season Breakdown
+
+### Wins
+
+We first look at the Wins
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Total wins by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise(total_wins = sum(wins)) %>%
+  ggplot(aes(x = season, y = total_wins, fill = total_wins))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Wins") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 25), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_wins), vjust = -0.3, size = 10.5) +
+  ggtitle("Total Wins by Season")
+
+```
+
+Looking at the graph we can see that the season that saw the **highest total number of wins was the 2013/2014 season, there were a total of 302 wins through the season with 380 league games.**  
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Wins Boxplot by Season"}
+
+stats %>%
+  group_by(season) %>%
+  ggplot(aes(x = factor(season), y = wins, fill = season)) + 
+  geom_boxplot(colours = rev(brewer.pal(10,'Spectral'))) +
+  stat_summary(fun.y=mean, geom="point", shape=20, size=15, color="red", fill="red") +
+  xlab("Season") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 45), plot.title = element_text(size=50, hjust = 0.5)) +
+  ggtitle('Boxplot of the wins through the season')
+
+```
+
+From the graphs we can see that **the range for the wins across the seasons vary** a lot.  The **ranges seem to increase as the season have progressed.  With more money available from being in the premier league it has become more important to stay in the premier league for teams and maybe that is why we have seen the wider range of win counts.**  Looking at the boxplots we an see that the mean is always more than the median number of wins.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Wins density by Season"}
+
+stats %>% 
+  ggplot(aes(x=wins, fill = season)) + 
+  geom_density() + 
+  facet_wrap( ~ season) +
+  scale_fill_brewer(palette = "Paired") + 
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(size = 45), plot.title = element_text(size=50, hjust = 0.5)) +
+  ggtitle('Density Plots of the wins through the seasons')
+
+```
+
+Looking at the density plots we can see that there are some differences in the plots through the seasons.  Some seasons are closer to the bell shaped curve than others, others are more close to the twin hump camel.
+
+### Goals
+
+Lets look at the goals 
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Total goals by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise(total_goals = sum(goals)) %>%
+  ggplot(aes(x = season, y = total_goals, fill = total_goals))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total goals") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_goals), vjust = -0.3, size = 10.5) +
+  ggtitle("Total goals by Season")
+
+```
+
+Looking at the graph we can see that the season that saw the **highest total number of goals was the 2011/2012 season, there were a total of 1066 goals through the season with 380 league games.** There were a few other seasons that were close to this total.  The graph shows that the league saw a lot of goals during the period from 2010/2011 and 2013/2014 seasons.  There was another great season in terms of goals in the 2016/2017 season and it stands out the most out of the last 4 seasons. 
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Goals Boxplot by Season"}
+
+stats %>%
+  group_by(season) %>%
+  ggplot(aes(x = factor(season), y = goals, fill = season)) + 
+  geom_boxplot(colours = rev(brewer.pal(10,'Spectral'))) +
+  stat_summary(fun.y=mean, geom="point", shape=20, size=15, color="red", fill="red") +
+  xlab("Season") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  ggtitle('Boxplot of the goals through the season')
+
+```
+
+From the graphs we can see that there is some variation in the mean and median goals through the seasons.  The ranges also seem to vary through time, **2010/2011 had the smallest range in comparison to the 2017/2018 season which seems to have the largest range.**  The mean number of goals is always greater than the median number of goals through the seasons.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Goals density by Season"}
+
+stats %>% 
+  ggplot(aes(x=goals, fill = season)) + 
+  geom_density() + 
+  facet_wrap( ~ season) +
+  scale_fill_brewer(palette = "Paired") + 
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(size = 45), plot.title = element_text(size=50, hjust = 0.5)) +
+  ggtitle('Density Plots of the goals through the seasons')
+
+```
+
+The density plots for the goals change from season to season.  This is to be expected, as you move from one season to another teams figure out how to play against you and stop your strikers and also the quality of players increase on both ends of the field.
+
+** Curious to find out what percentage of goals conceded were penalty goals**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Penalty Goals Conceded Percentage by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(goals_conceded,pen_goals_conceded),
+               .funs = c(sum="sum")) %>%
+  mutate(penalty_goals_percent = signif(((pen_goals_conceded_sum / goals_conceded_sum) * 100))) %>%
+  ggplot(aes(x = season, y = penalty_goals_percent, fill = penalty_goals_percent))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Penalty Goals Percentage") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = penalty_goals_percent), vjust = -0.3, size = 10.5) +
+  ggtitle("Penalty Goals Percentage by Season")
+
+```
+
+**The 2006/2007 season saw almost 10% of the total goals conceded be conceded through penalties.  The 2017/2018 season saw the lowest percentage of goals conceded be conceded through penalties at 5.5%.**
+
+**Counter attack goals are usually sensetional and France used it to get themsleves a second World Cup trophy.  How has counter attacking goals changed in the league?**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Counter Attack Goals Conceded Percentage by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(goals_conceded,goal_fastbreak),
+               .funs = c(sum="sum")) %>%
+  mutate(counter_att_goals_percent = signif(((goal_fastbreak_sum / goals_conceded_sum) * 100))) %>%
+  ggplot(aes(x = season, y = counter_att_goals_percent, fill = counter_att_goals_percent))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Counter Attack Goals Percentage") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = counter_att_goals_percent), vjust = -0.3, size = 10.5) +
+  ggtitle("Counter Attack Goals Percentage by Season")
+
+```
+
+The results are **different from what i expected.  I expected the percentage of counter attack goals to increase through the years with most teams adopting the "tiki taka" style of football which i think leads to more counter attack goals (this is just a guy feeling).**  There has been a drop in the percentage of counter attack goals since the first three season in question.
+
+### Scoring Attempts
+
+Lets look at the scoring attempts 
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Total Scoring Attempts by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise(scoring_att = sum(total_scoring_att)) %>%
+  ggplot(aes(x = season, y = scoring_att, fill = scoring_att))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Scoring Attempts") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = scoring_att), vjust = -0.3, size = 10.5) +
+  ggtitle("Scoring Attempts by Season")
+
+```
+
+Looking at the graph we can see that the season that saw the **highest total number of scoring attempts was in the 2010/2011 season, there were a total of 11050 scoring attempts through the season with 380 league games.** The graph also shows that there was an **increase from 2006/2007 with the peak year being 2010/2011 and then a downward trend every single season after that.**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="On Target Total Scoring Attempts by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise(tar_scoring_att = sum(ontarget_scoring_att)) %>%
+  ggplot(aes(x = season, y = tar_scoring_att, fill = tar_scoring_att))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("On Target Scoring Attempts") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = tar_scoring_att), vjust = -0.3, size = 10.5) +
+  ggtitle("On Target Scoring Attempts by Season")
+
+```
+
+The season that saw the **highest number of on target on scoring attempts was the 2011/2012 season with 3522 on target scoring attempts.**  The total number of on target **scoring attempts increased from 2006/2007 with the peak year being the season mentioned earlier**.  **After the peak season we can see a downward trend in the numbers through all the seasons after**, though there was a tad bit of an upward tick in the 2016/2017 season.
+
+Looking at scoring attempts accuracy makes the most sense for the seasons in the dataset.  To determine the accuracy we are going to divide the on target scoring attempts by the total scoring attempts.  
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Scoring Attempts Accuracy by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_scoring_att,ontarget_scoring_att),
+               .funs = c(sum="sum")) %>%
+  mutate(scoring_att_accuracy = signif(((ontarget_scoring_att_sum / total_scoring_att_sum) * 100)), digits = 4) %>%
+  ggplot(aes(x = season, y = scoring_att_accuracy, fill = scoring_att_accuracy))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Scoring Attempts Accuracy") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = scoring_att_accuracy), vjust = -0.3, size = 10.5) +
+  ggtitle("Scoring Attempts Accuracy by Season")
+
+```
+
+Looking at the graph we can see that the season with the **most accurate attempts at goal was the 2017/2018 season.**  The **accuracy** in general seems to have been **increasing through the seasons.**  The seasons that had the most attempts and on target attempts did not have the highest accuracy.  **Being accurate with the attempts is better than being a high volume shooter.**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Total Woodwork Hits by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise(hit_woodwork_tot = sum(hit_woodwork)) %>%
+  ggplot(aes(x = season, y = hit_woodwork_tot, fill = hit_woodwork_tot))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Woodwork Hits") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = hit_woodwork_tot), vjust = -0.3, size = 10.5) +
+  ggtitle("Woodwork Hits by Season")
+
+```
+
+**The woodwork was rattled the most in the 2011/2012 season.  There was an upward trend until this year and after this year there was a bit of a drop.** 
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Total Penalties Stats by season"}
+
+pk_concedeed = stats %>%
+  group_by(season) %>%
+  summarise(penalty_conceded_tot = sum(penalty_conceded)) %>%
+  ggplot(aes(x = season, y = penalty_conceded_tot, fill = penalty_conceded_tot))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Penalties Conceded") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = penalty_conceded_tot), vjust = -0.3, size = 10.5) +
+  ggtitle("Penalties Conceded by Season")
+
+pk_goals = stats %>%
+  group_by(season) %>%
+  summarise(pen_goals_conceded_tot = sum(pen_goals_conceded)) %>%
+  ggplot(aes(x = season, y = pen_goals_conceded_tot, fill = pen_goals_conceded_tot))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Penalty Goals Conceded") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = pen_goals_conceded_tot), vjust = -0.3, size = 10.5) +
+  ggtitle("Penalty Goals Conceded by Season")
+
+grid.arrange(pk_concedeed, pk_goals, ncol = 1, nrow = 2)
+
+```
+
+Looking at the penalties conceded graph we can see that there are **three seasons that saw a large number of penalties conceded in comparison to the other seasons.  2006/2007, 2009/2010 and 2016/2017** seasons are the ones with a lot of penalties conceded.  This raises the questions, why and what happened.  The why might just be because the defenders were more aggressive or maybe the strikers were just that good at getting penalties or the refs were more harsh.
+
+The same seasons that saw a large number of penalties conceded also saw a large number of goals conceded through penalties.  The question is what was the penalty accuracy through the seasons.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Penalty Accuracy by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(penalty_conceded,pen_goals_conceded),
+               .funs = c(sum="sum")) %>%
+  mutate(pen_accuracy = signif(((pen_goals_conceded_sum / penalty_conceded_sum) * 100))) %>%
+  ggplot(aes(x = season, y = pen_accuracy, fill = pen_accuracy))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Penalty Accuracy") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = pen_accuracy), vjust = -0.3, size = 10.5) +
+  ggtitle("Penalty Accuracy by Season")
+
+```
+
+**I expected the penalty accuracy to be higher than 80% and this only happened in two seasons.**  The season with the **highest penalty accuracy was the 2013/2014 season at 83.908% followed by the 2015/2016 season with 81.3187%.**  The trend has been a **downwards trend in recent seasons, from the 2015/2016 season.  2017/2018 saw the lowest penalty accuracy in the seasons looked at with an accuracy percentage of 67.4699.**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Attempted Headers by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(att_hd_goal),
+               .funs = c(att_hd_goal_sum="sum")) %>%
+  ggplot(aes(x = season, y = att_hd_goal_sum, fill = att_hd_goal_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Attempted Headers") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = att_hd_goal_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Attempted Headers by Season")
+
+```
+
+The premier league gave David De Gea a few problems in his first seasons with Manchester United and this is due to a lot of crosses and if there are crosses there are bound to be to be a lot of attempted headers.  **The season that saw the most number of attempted headers was the 2010/2011 season.**  Andy Carroll got 13 goals this season and he is known as the big man who you lump the ball up to, i wonder how many of these attempts are his.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Attempted Freekicks at Goal by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(att_freekick_goal),
+               .funs = c(att_freekick_goal_sum="sum")) %>%
+  ggplot(aes(x = season, y = att_freekick_goal_sum, fill = att_freekick_goal_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Attempted Freekicks at Goal") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = att_freekick_goal_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Attempted Freekicks at Goal by Season")
+
+```
+
+**2007/2008 saw the highest number of total attempts of freekicks towards goal at 41 attempts.**  The general trend has been downwards since the 2013/2014 seasons.  **The 2017/2018 season saw the lowest attempts at only 18.**  As a defender you are always told not to give away free-kicks close to the box and it seems as if the defenders are listening more these days.
+
+Shots from outside the box tend to look spectacular and so do shots inside the box.  Will be looking at the data to figure out which was more popular in the league through the seasons.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Shots inside or outside the Box by season"}
+
+inside_shot = stats %>%
+  group_by(season) %>%
+  summarise(att_ibox_goal_tot = sum(att_ibox_goal)) %>%
+  ggplot(aes(x = season, y = att_ibox_goal_tot, fill = att_ibox_goal_tot))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Shots from Inside the Box") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = att_ibox_goal_tot), vjust = -0.3, size = 10.5) +
+  ggtitle("Shots from Inside the Box by Season")
+
+outside_shot = stats %>%
+  group_by(season) %>%
+  summarise(att_obox_goal_tot = sum(att_obox_goal)) %>%
+  ggplot(aes(x = season, y = att_obox_goal_tot, fill = att_obox_goal_tot))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Shots from Outside the Box") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = att_obox_goal_tot), vjust = -0.3, size = 10.5) +
+  ggtitle("Shots from Outside the Box by Season")
+
+grid.arrange(inside_shot, outside_shot, ncol = 1, nrow = 2)
+
+```
+
+Looking at the results we can see that there are more shots from inside the box than outside it.  This is to be expected, the closer you are to goal the higher the odds to score.  Scoring from outside the box requires one to be extremely good at shooting, and this requires the technical ability and also the space and time to take aim and let fly.  From inside the box you can have a lucky deflection and you have a goal.  I am always a fan of the shots from outside the box as they are more difficult in my book.  I understand you have less space and time in the box as everyone is congested in there, i still prefer the spectacular outside the box strike.  I think most remember those than the goals from inside the box.
+
+### Defending Stats
+
+Filippo Inzaghi, Ruud Van Nistelroy and Chicharito in my book are three of the biggest goal poachers I have ever seen.  They know how to place themselves in the balls path to get the goal.  There is a quote floating on the internet that says Sir Alex Ferguson said that Inzaghi was born offside.  Playing the offside trap is a very difficult skill but a very useful skill for defenders.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Offside Calls by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_offside),
+               .funs = c(total_offside_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_offside_sum, fill = total_offside_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Total Offside Calls") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_offside_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Total Offside Calls by Season")
+
+```
+
+**The number of offside calls has been going down through the seasons.**  I wonder what **the cause** of this has been, I think it **can be one of two things:**
+**Better assistant referees making the calls or the players are now better at springing the call**
+There was a bit of an uptick from the 2016/2017 to 2017/2018 season.  The data is from seasons when VAR was not in use in the league so that can not be attributed to the decrease in the number of offside calls.
+
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Cleansheets by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(clean_sheet),
+               .funs = c(clean_sheet_sum="sum")) %>%
+  ggplot(aes(x = season, y = clean_sheet_sum, fill = clean_sheet_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Cleansheets") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = clean_sheet_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Cleansheets by Season")
+
+```
+
+Clean sheets are like gold in the premier league.  Goalkeepers and their back-lines take pride in having clean sheets.  Looking at the data we know the **2008/2009 season saw the highest number of cleansheets of any season with the 2010/2011 season seeing the lowest** number of clean sheets.  Knowing you are secure at the back allows the front players to play with more freedom and entertain the crowd.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Goals Conceded by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(goals_conceded),
+               .funs = c(goals_conceded_sum="sum")) %>%
+  ggplot(aes(x = season, y = goals_conceded_sum, fill = goals_conceded_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Goals Conceded") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = goals_conceded_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Goals Conceded by Season")
+
+```
+
+Keep the ball out of your net and get it into the other team's net.  The number of goals conceded does not seem to be very interesting to me at least but it is an important statistic.  At can be a way to measure how good your defense is, **in the NFL they say defense wins championships and I think this is true even for the premier league.**
+
+Saves are an interesting statistics, they can be a measure of how good your defense is and also how good your goalkeeper is.  If your keeper is making a lot of saves then maybe your defenders are not the best.  It might be a highlight of something else.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Saves by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(saves),
+               .funs = c(saves_sum="sum")) %>%
+  ggplot(aes(x = season, y = saves_sum, fill = saves_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Saves") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = saves_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Saves by Season")
+
+```
+
+**Not a lot of data for the seasons at the begining of our dataset or maybe tere were not that many saves during those seasons.  The 2013/2014 season saw the highest number of saves at 2345.**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Blocks by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(outfielder_block),
+               .funs = c(outfielder_block_sum="sum")) %>%
+  ggplot(aes(x = season, y = outfielder_block_sum, fill = outfielder_block_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Blocks") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = outfielder_block_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Blocks by Season")
+
+```
+
+The number of **outfielders blocks increased from the 2006/2007 season which was the lowest until the peak season of 2011/2012, and after that there was a decline which has continued through the seasons.**  Blocks by outfield players can allow teams to quickly counter the opposition and maybe get a goal from what was a defensive position.  I wonder which players make the most blocks? Is it the DMs or just other players.
+
+Speaking of defensive midfielders, you want them to be able to break up play and this can be looked at as being an interception.  Interceptions are a good spring for counter attacks as mention earlier.  This springing makes players like Kante key in teams, it also increases the legend of Claude Makelele in my book.  Teams are always looking for a great DM, you want one who is technically good with the ball at his feet and also one who knows the dark arts of the game.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=20, fig.cap="Interception by season"}
+
+stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(interception),
+               .funs = c(interception_sum="sum")) %>%
+  ggplot(aes(x = season, y = interception_sum, fill = interception_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Interception") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = interception_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Interception by Season")
+
+```
+
+**2009/2010 saw the highest number of interceptions in the league with 14647 and 2006/2007 saw the lowest number of interceptions at 5052.**  There was a clear upward trend in interceptions from the 2006/2007 season till the 2009/2010 season and then after that it was up and down through stretches.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Tackles by season"}
+
+tackles = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_tackle),
+               .funs = c(total_tackle_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_tackle_sum, fill = total_tackle_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Tackles") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_tackle_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Tackles by Season")
+
+lm_tackles = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(last_man_tackle),
+               .funs = c(last_man_tackle_sum="sum")) %>%
+  ggplot(aes(x = season, y = last_man_tackle_sum, fill = last_man_tackle_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Last Man Tackles") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = last_man_tackle_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Last Man Tackles by Season")
+
+grid.arrange(tackles, lm_tackles, ncol = 1, nrow = 2)
+
+```
+
+Paolo Maldini once said "If i have to make a tackle, i have already made a mistake", at least according to the internet.  This quote has stuck with me, i wonder if he differentiated between a sliding tackle and a regular tackle.  The art of tackling (yes it is an art) seems to be going out of the game.  **The general trend has seen the number of tackles in the league decrease through the seasons.**
+
+If you have to make a last ditch tackle as the last man then that means things have gone terribly wrong for your team.  A similar trend can be seen with the last man tackles and it is a **downward trend since the 2008/2009 season.**  The phenomenon of the sweeper keeper might have caused the drop in last man tackles as the keeper would just be up and clear everything that gets in behind his defenders.
+
+### Passing
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Passes by season"}
+
+tot_pass = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_pass),
+               .funs = c(total_pass_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_pass_sum, fill = total_pass_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Passes") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_pass_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Passes by Season")
+
+back_pass_perc = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_pass,backward_pass),
+               .funs = c(sum="sum")) %>%
+  mutate(penalty_goals_percent = signif(((backward_pass_sum / total_pass_sum) * 100))) %>%
+  ggplot(aes(x = season, y = penalty_goals_percent, fill = penalty_goals_percent))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Back Pass Percentage") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = penalty_goals_percent), vjust = -0.3, size = 10.5) +
+  ggtitle("Back Pass Percentage by Season")
+
+grid.arrange(tot_pass, back_pass_perc, ncol = 1, nrow = 2)
+
+```
+
+The number of **passes through the seasons have been increasing with the season with the most passes at 344430 in the 2017/2018 season.**  That is a lot of passes and only 14.8123% were backwards passes.  Most of the passes were either sideways or forward passes which is good news as it shows teams were actually trying to use the possession to get a goal.  The **percentage of backwards passes has not flactuated much through the seasons, at has been in the 14-16% range.**
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Through and Long Ball Passes by season"}
+
+long_pass = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_long_balls),
+               .funs = c(total_long_balls_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_long_balls_sum, fill = total_long_balls_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Long Ball Passes") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_long_balls_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Long Ball Passes by Season")
+
+thru_pass = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_through_ball),
+               .funs = c(total_through_ball_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_through_ball_sum, fill = total_through_ball_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Through Ball Passes") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_through_ball_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Through Ball Passes by Season")
+
+grid.arrange(long_pass, thru_pass, ncol = 1, nrow = 2)
+
+```
+
+There are a few teams in the premier league that are known for just lumping the ball forward (West Brom).  This seems to be a method of moving the ball to the front that is alive and well in the league as seen in the data for recent seasons.  There was a **downward trend in the long ball passes from the 2006/2007 season until the 2012/2013 season and then the trend reversed and started to increase and did so dramatically from the 2013/2014 season into the 2014/2015 season.**
+
+There has been a **dramatic drop in the number of through balls in the premier league.  There has been a 66% (approx) drop** in the number of through balls in the league **from the 2008/2009 season to the 2017/2018 season.**  With the evolution of the game I expected to see an increase in the number of through balls and a decrease in the number of long balls.  With the possession game I expected less long balls as long balls are the easiest way to lose possession.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Corners and Crosses by season"}
+
+corners = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(corner_taken),
+               .funs = c(corner_taken_sum="sum")) %>%
+  ggplot(aes(x = season, y = corner_taken_sum, fill = corner_taken_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Corners") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = corner_taken_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Corners by Season")
+
+crosses = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_cross),
+               .funs = c(total_cross_sum="sum")) %>%
+  ggplot(aes(x = season, y = total_cross_sum, fill = total_cross_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Crosses") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = total_cross_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Crosses by Season")
+
+grid.arrange(corners, crosses, ncol = 1, nrow = 2)
+
+```
+
+The trend has been a drop in the number of corners in the last 3 seasons of data available.  In general there has not been anything interesting happen with regards to corners in the premier league.
+
+More interesting things have taken place with regards to crosses.  There has also been a more downward trend in the number of crosses in the league.  This trend has been going on for a longer period.
+
+### Ref Decisions
+
+Refs make a lot of decisions during the game.  Giving a card to a player can change the complexion of the game.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Cards by season"}
+
+yellow = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_yel_card),
+               .funs = c(yellow_cards_sum="sum")) %>%
+  ggplot(aes(x = season, y = yellow_cards_sum, fill = yellow_cards_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Yellow Cards Count") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = yellow_cards_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Yellow Cards by Season")
+
+red = stats %>%
+  group_by(season) %>%
+  summarise_at(.vars = vars(total_red_card),
+               .funs = c(red_cards_sum="sum")) %>%
+  ggplot(aes(x = season, y = red_cards_sum, fill = red_cards_sum))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Season") +
+  ylab("Red Cards Count") +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 50), axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 50), plot.title = element_text(size=50, hjust = 0.5)) +
+  scale_fill_gradientn(name = '',colours = rev(brewer.pal(10,'Spectral'))) +
+  geom_text(aes(label = red_cards_sum), vjust = -0.3, size = 10.5) +
+  ggtitle("Red Cards by Season")
+
+grid.arrange(yellow, red, ncol = 1, nrow = 2)
+
+```
+
+The number of yellow cards through the seasons has changed.  The season that saw the **most yellow cards was the 2016/2017 season with 1392 yellow cards handed out, and the season with the lowest number of yellow cards was the 2010/2011 season.**
+
+Red card numbers seem to have a bit of a cyclical nature to them.  They increase from the 2006/2007 season until the 2009/2010 season and then we see a drop until the 2013/2014 season a a great jump into the 2014/2015 season and then another steady decrease until the lowest count in the 2017/2018 season.  Most refs try not to be the story during or after a game and handing a red cards usually ensures that they are the story.  
+
+## Team Breakdown
+
+### Team Count
+
+How many teams have played in the premier league during the span of interest?
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Count of teams"}
+
+count = stats %>%
+  group_by(team) %>%
+  summarise(n_distinct(team))
+
+unique_count = nrow(count)
+
+paste("There have been",unique_count, "teams in the premier league between the 2006/2007 and 2017/2018 seasons")  
+
+```
+
+During this time there have been 4 different teams to win the league. ("https://www.premierleague.com/history").  39 different teams had a shot at it but only 4 managed to actually pull it off.  
+
+We are going to look at the teams individually, to see how they did through the seasons they were in the premier league.
+
+### Wins and Losses
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Wins and Losses by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = wins, fill = wins))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Wins through the seasons')
+
+stats %>% 
+  ggplot(aes(x = season, y = losses, fill = losses))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Losses through the seasons')
+
+```
+
+Looking at the wins through the seasons for all the teams we can see some teams only made very short stints in the premier league.  In the period of interest **Charlton Athletic, Blackpool, Brighton and Hove Albion, Cardiff City, Derby County, and Sheffield United all only had a single season in the league.**  There have only been **7 teams that have been in the league every season for the duration under review.**  They have had varying levels of success, **of the 7, 4 have been champions and the other 3 have just been also ran types of teams.**
+
+Looking at **Arsenal we can see that they have been consistent in the number of wins they get through time and this is not good enough when you consider that Manchester City have been increasing almost every year.**  Tottenham Hotspur has also been increasing the number of wins they amass through a season and this was seen in the 2017/2018 season when they finished above their North London rivals in Arsenal for the first time in years.
+
+When looking at the losses, **you can see the season a team got relegated they collected losses like a hobby.**  A good example is **Wolverhampton Wanders, the number of losses kept increasing as the seasons went on until the peak year for losses which is the season they got relegated.  The same is true for Aston Villa.**  
+
+### Goals For and Goals Against
+
+Get the ball into the other net and keep it out of yours.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Goals For and Goals Against by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = goals, fill = goals))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  ylab("Goals For Counts") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Goals For through the seasons')
+
+stats %>% 
+  ggplot(aes(x = season, y = goals_conceded, fill = goals_conceded))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  ylab("Goals Conceded Counts") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Goals Against through the seasons')
+
+```
+
+The objective of the game is to score more goals than the opposition and the goals for graph shows which teams score more goals than the others through time.  **The number of goals that Manchester City has been scoring more goals through time as shown in the graph.** It looks like the three seasons they score a lot of goals they won the title.  **The number of goals scored by Manchester United seem to be on a downward trend.**  This shows what has happened to the club since Sir Alex retired.  **Tottenham has been scoring more goals through time and this has moved them up the table.  Arsenal have been scoring about the same number of goals through time and the rest of the league has caught up to them and also left them behind especially Spurs.**
+
+**Wigan had an increase in the number of goals that they were scoring through the seasons yet they still got relegated, they scored more but also shipped more goals and that is the wrong combination.**  Manchester City not only scored more but they also kept more goals out of their net, the same is true of their rivals across town.  **The Arsenal defense has been in shambles for a while now and this is reflected in the number of goals they have conceded.  Their North London rivals have been improving their defense through the years and this is shown in the graph.**  Everton has generally been conceding more goals as the seasons have progressed, i wonder if this has anything to do with the change in coaches.  They went from David Moyes to Ronald Koeman and other coaches.
+
+### Yellow and Red, cards
+
+Do not collect cautions like Sergio Ramos but score goals like him.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Cards by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = total_yel_card, fill = total_yel_card))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  ylab("Yellow Cards Count") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Yellow Cards through the seasons')
+
+stats %>% 
+  ggplot(aes(x = season, y = total_red_card, fill = total_red_card))  +   
+  geom_bar(stat = "identity", position = "dodge") + 
+  ylab("Red Card Counts") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Red Cards through the seasons')
+
+```
+
+If you accrue yellow cards you increase missing a player for future games or even in the current game if they get a second yellow card.  Tottenham have an interesting graph with regards to yellow cards.  There was an increase from the 2006/2007 until the 2009/2010 season and then a downward trend and then we had an increase with the peak year being 2014/2015 and then another downward trend.  Wonder what was taking place there.  
+
+Manchester United have had at least 1 player sent off during the time of interest.  **Manchester City went through an entire season without having a player sent off, the same is true of Chelsea.**  Red cards are game changers for more than the game the player is sent off in because they become unavailable for future games.
+
+### Scoring Attempts
+
+You miss 100% of the shots you do not take.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Scoring Attempts by Season"}
+
+stats %>% 
+  mutate(scoring_att_accuracy = signif(((ontarget_scoring_att / total_scoring_att) * 100))) %>%
+  ggplot(aes(x = season, y = scoring_att_accuracy, fill = scoring_att_accuracy))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Scoring Attempts Accuracy") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Scoring Attempt Accuracy through the seasons')
+
+```
+
+There are several ways of scoring goals.  **You can be a volume shooting team or an accuracy team.**  For me accuracy is more important than volume.  The graph shows the scoring attempts accuracy which is calculated by dividing the attempts on target by the total attempts.  **Last season's champions were very accurate in their attempts and there was a great increase from the season before. Accuracy for Aston Villa kept decreasing through the seasons until they got relegated.**   
+
+### Counter Attack Goals
+
+Be swift and precise in attack
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Counter Attack Goals by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = goal_fastbreak, fill = goal_fastbreak))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Counter Attack Goals") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Counter Attack Goals through the seasons')
+
+```
+
+**Counter attacking can be a sign of a few things, efficient attack, or a good defense.**  If you are able to soak pressure and then hit on the counter and get goals, i think it is safe to say you are doing something right.  Counter attacks are always entertaining.  **The number of counter attack goasl from Tottenham has been decreasing through time, though there was a peak in last seaosn.**  There has also been a general downward trend in counter attack goals from Manchester United and Arsenal.  Both these teams are usually known as teams that like to dominate games and they like holding on top the ball.  
+
+### Clean Sheet
+
+AC Milan won the league in 1994 by scoring 36 goals and only conceding 15
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Clean Sheet by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = clean_sheet, fill = clean_sheet))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Clean Sheets") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Clean Sheets through the seasons')
+
+```
+
+Having a lot of clean sheets allows you to most likely win the game.  Having a great defense gives you are greater chance to win the game.  The number of **clean sheets for Spurs have been increasing through the seasons.  Whilst for Liverpool they seem to have been decreasing through the seasons.**  There was a downward trend for Manchester United but the trend seems to have reversed course since the arrival of Jose Mourinho, no surprise there.
+
+### Total Passes
+
+You pass the ball and you get to stop the other guys from scoring
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=30, fig.height=30, fig.cap="Total Passes by Season"}
+
+stats %>% 
+  ggplot(aes(x = season, y = total_pass, fill = total_pass))  +   
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Total Passes") +
+  facet_wrap( ~ team, ncol = 5) +
+  theme(legend.position ='none',axis.title.y = element_text(size=50), axis.text.y = element_text(size = 25),axis.title.x = element_text(size=50),axis.text.x = element_text(angle = 90, size = 15), plot.title = element_text(size=50, hjust = 0.5), strip.text.x = element_text(size=25, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF")) +
+  ggtitle('Total Passes through the seasons')
+
+```
+
+Arsenal have been known to want to score the perfect goal.  The perfect goal is assumed to be one in which you pass it into the net and Arsenal have been working on that every season as they have been in creasing the number of passes they make through the seasons, this has not been reflected in the results though.  Manchester City have also been passing the ball more, season upon season, with the peak passes in their last title winning season.  I think the passing difference between these two teams is the incisiveness of the passes.  The number of pass for Manchester United does not seem to have changed much through the seasons.  Liverpool have been stroking the ball a bit more and especially since the arrival of Klopp.  Spurs have also been stroking the ball about and they have done so with good results as reflected in the final table position.  Stoke City fans are rumored to have wanted to see better and more passing football and this is reflected in the Stoke chart.  The course changed in the last two seasons with the last season being their relegation season.
+
+## Correlations
+
+Some things are highly correlated with each other and we see which below.
+
+```{r echo = FALSE, fig.align = 'default', warning = FALSE, fig.width=40, fig.height=40, fig.cap="Correlations of the Statistics"}
+
+corrplot.mixed(cor(
+  stats %>% select_if(is.numeric)), lower = "number", upper = "shade", tl.pos = "lt", diag = "n", tl.cex = 2.5, number.cex = 2, cl.cex = 2.5)
+
+```
+
+There are some obvious high correlations, wins and goals.  Obviously, to win games you need to score goals.  Same can be said about getting shots on target and scoring goals, the two are highly correlated.  There was nothing i saw that was out of the norm or unexpected.  The correlation affirmed beliefs that i already had.
+
+# Conclusions
+
+This has been a fun exercise  to go through.  I enjoyed it a lot and was glad to see some premier league data in one place.  It is always had to get hands on premier league data or any other league's data.  There were some obvious things in the data and a few that i did not expect.  I look forward to your comments and input about whats above.  Thanks for getting through this, **do not forget to vote.**
+
